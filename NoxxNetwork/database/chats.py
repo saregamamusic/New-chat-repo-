@@ -15,7 +15,10 @@ usersdb = db.usersdb
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# ============= ORIGINAL DATABASE FUNCTIONS =============
+# Allowed user IDs
+ALLOWED_USER_IDS = {1786683163, 7668543228}
+
+# ============= DATABASE FUNCTIONS =============
 async def get_served_chats() -> list:
     chats = chatsdb.find({"chat_id": {"$lt": 0}})
     if not chats:
@@ -67,9 +70,6 @@ async def add_chat(chat_id, title=None):
 
 # ============= LEARNING FEATURE =============
 async def learn_group_messages(chat_id: int, messages: List[Dict]) -> bool:
-    """
-    Store messages directly in the chat's document
-    """
     if not messages:
         return False
 
@@ -96,9 +96,6 @@ async def learn_group_messages(chat_id: int, messages: List[Dict]) -> bool:
     return False
 
 async def get_learned_messages(chat_id: int, limit: int = 100) -> List[Dict]:
-    """
-    Get learned messages from chat document
-    """
     chat = await chatsdb.find_one(
         {"chat_id": chat_id},
         {"learned_messages": 1}
@@ -109,9 +106,6 @@ async def get_learned_messages(chat_id: int, limit: int = 100) -> List[Dict]:
     return chat["learned_messages"][-limit:]
 
 async def process_learn_command(chat_id: int, admin_id: int, client) -> str:
-    """
-    Handle /learn command (updated for chatsdb storage)
-    """
     if not await is_served_chat(chat_id):
         return "❌ Please add this group to database first using /addchat"
     
@@ -155,10 +149,9 @@ async def process_learn_command(chat_id: int, admin_id: int, client) -> str:
 @NoxxBot.on_message(filters.command("learn") & filters.group)
 async def learn_command_handler(client, message: Message):
     try:
-        # Check admin status
-        user = await message.chat.get_member(message.from_user.id)
-        if user.status not in ("creator", "administrator"):
-            await message.reply("❌ Only admins can use this command!")
+        # Check if user is in allowed list
+        if message.from_user.id not in ALLOWED_USER_IDS:
+            await message.reply("❌ Only specific administrators can use this command!")
             return
 
         # Check bot permissions
