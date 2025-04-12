@@ -2,7 +2,7 @@ from NoxxNetwork import NoxxBot, db
 from typing import List, Dict
 from datetime import datetime
 from pyrogram import filters
-from pyrogram.types import Message, ChatPrivileges
+from pyrogram.types import Message
 import logging
 import asyncio
 from pyrogram.errors import FloodWait
@@ -105,78 +105,53 @@ async def get_learned_messages(chat_id: int, limit: int = 100) -> List[Dict]:
     
     return chat["learned_messages"][-limit:]
 
-async def process_learn_command(chat_id: int, admin_id: int, client) -> str:
-    if not await is_served_chat(chat_id):
-        return "❌ Please add this group to database first using /addchat"
-    
-    try:
-        # Get last 1000 messages
-        messages = []
-        count = 0
-        async for message in client.get_chat_history(chat_id, limit=1000):
-            if not message.text:
-                continue
-                
-            messages.append({
-                'message_id': message.id,
-                'text': message.text,
-                'date': message.date,
-                'user_id': message.from_user.id if message.from_user else None,
-                'username': message.from_user.username if message.from_user else None
-            })
-            count += 1
-            if count % 200 == 0:  # Update progress every 200 messages
-                await client.send_message(
-                    chat_id=admin_id,
-                    text=f"⏳ Collected {count} messages so far..."
-                )
-        
-        # Store in the same chat document
-        success = await learn_group_messages(chat_id, messages)
-        
-        if success:
-            return f"✅ {len(messages)} messages successfully learned and stored!"
-        return "❌ No valid messages found to learn"
-            
-    except FloodWait as e:
-        await asyncio.sleep(e.value)
-        return f"⚠️ Please wait {e.value} seconds before trying again"
-    except Exception as e:
-        logger.error(f"Error in process_learn_command: {str(e)}", exc_info=True)
-        return f"⚠️ Error: {str(e)}"
-
 # ============= COMMAND HANDLER =============
 @NoxxBot.on_message(filters.command("learn") & filters.group)
 async def learn_command_handler(client, message: Message):
     try:
-        # Check if user is in allowed list
+        # Check if user is allowed
         if message.from_user.id not in ALLOWED_USER_IDS:
             await message.reply("❌ Only specific administrators can use this command!")
             return
 
-        # Check bot permissions - works for both old and new Pyrogram versions
+        # Check bot permissions
         bot_member = await message.chat.get_member("me")
-        
-        # Modern Pyrogram (v2.0+)
-        if hasattr(bot_member, 'privileges'):
-            if not bot_member.privileges.can_delete_messages:
-                await message.reply("❌ I need 'Delete Messages' permission to read chat history!")
-                return
-        # Legacy Pyrogram
-        elif not getattr(bot_member, 'can_delete_messages', False):
+        if not bot_member.can_delete_messages:
             await message.reply("❌ I need 'Delete Messages' permission to read chat history!")
             return
 
         processing_msg = await message.reply("⏳ Starting to learn from this group...")
 
-        result = await process_learn_command(
-            chat_id=message.chat.id,
-            admin_id=message.from_user.id,
-            client=client
-        )
+        # Ensure chat exists in database
+        await add_served_chat(message.chat.id, message.chat.title)
 
-        await processing_msg.edit(result)
+        # Get messages using iter_history
+        messages = []
+        count = 0
+        async for msg in client.iter_history(message.chat.id, limit=1000):
+            if not msg.text:
+                continue
+                
+            messages.append({
+                'message_id': msg.id,
+                'text': msg.text,
+                'date': msg.date,
+                'user_id': msg.from_user.id if msg.from_user else None,
+                'username': msg.from_user.username if msg.from_user else None
+            })
+            count += 1
+            if count % 200 == 0:
+                await processing_msg.edit(f"⏳ Collected {count} messages...")
 
+        # Store messages
+        if await learn_group_messages(message.chat.id, messages):
+            await processing_msg.edit(f"✅ Successfully learned {len(messages)} messages!")
+        else:
+            await processing_msg.edit("❌ No valid messages found to learn")
+
+    except FloodWait as e:
+        await asyncio.sleep(e.value)
+        await message.reply(f"⚠️ Please wait {e.value} seconds before trying again")
     except Exception as e:
-        logger.error(f"Error in learn_command_handler: {str(e)}")
-        await message.reply(f"⚠️ An error occurred: {str(e)}")
+        logger.error(f"Error in /learn: {str(e)}")
+        await message.reply(f"⚠️ Error: {str(e)}")
