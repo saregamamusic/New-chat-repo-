@@ -2,7 +2,7 @@ from NoxxNetwork import NoxxBot, db
 from typing import List, Dict
 from datetime import datetime
 from pyrogram import filters
-from pyrogram.types import Message
+from pyrogram.types import Message, ChatPrivileges
 import logging
 import asyncio
 from pyrogram.errors import FloodWait
@@ -154,9 +154,16 @@ async def learn_command_handler(client, message: Message):
             await message.reply("❌ Only specific administrators can use this command!")
             return
 
-        # Check bot permissions
+        # Check bot permissions - works for both old and new Pyrogram versions
         bot_member = await message.chat.get_member("me")
-        if not bot_member.can_delete_messages:
+        
+        # Modern Pyrogram (v2.0+)
+        if hasattr(bot_member, 'privileges'):
+            if not bot_member.privileges.can_delete_messages:
+                await message.reply("❌ I need 'Delete Messages' permission to read chat history!")
+                return
+        # Legacy Pyrogram
+        elif not getattr(bot_member, 'can_delete_messages', False):
             await message.reply("❌ I need 'Delete Messages' permission to read chat history!")
             return
 
