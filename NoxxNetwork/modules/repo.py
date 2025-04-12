@@ -8,7 +8,7 @@ from NoxxNetwork import NoxxBot
 
 
 start_txt = """**
-✪ 𝐖𝐞𝐥𝐜𝐨𝐦𝐞 𝐍𝐘 𝐂𝐫𝐞𝐚𝐭𝐢𝐨𝐧'𝐬 ✪
+✪ 𝐖𝐞𝐥𝐜𝐨𝐦𝐞 𝐌𝐮𝐬𝐢𝐜 𝐖𝐨𝐫𝐥𝐝 𝐒𝐮𝐩𝐩𝐨𝐫𝐭 ✪
 
 ➲ ᴇᴀsʏ ᴅᴇᴘʟᴏʏᴍᴇɴᴛ ✰  
 ➲ ɴᴏ ʙᴀɴ ɪssᴜᴇs ✰  
@@ -25,19 +25,19 @@ start_txt = """**
 async def repo(_, m: Message):
     buttons = [
         [ 
-          InlineKeyboardButton("ᴀᴅᴅ ᴍᴇ", url=f"https://t.me/{NoxxBot.username}?startgroup=true")
+          InlineKeyboardButton("ᴀᴅᴅ ᴍᴇ", url=f"https://t.me/{Baby_ChatsBot.username}?startgroup=true")
         ],
         [
-          InlineKeyboardButton("Nᴀɴᴅ", url="https://t.me/TMZEROO"),
-          InlineKeyboardButton("Cʜᴀᴛᴢᴏɴᴇ", url="https://t.me/NYCreation_Chatzone"),
+          InlineKeyboardButton("sᴛʏʟᴇs ᴅᴘᴢ", url="https://t.me/DPZ_STYLES_WORLD"),
+          InlineKeyboardButton("Cʜᴀᴛᴢᴏɴᴇ", url="https://t.me/+gdo528FUAq84NTM1"),
           ],
                [
-                InlineKeyboardButton("ᴏᴡɴᴇʀ", url="https://t.me/TMZEROO"),
+                InlineKeyboardButton("ᴏᴡɴᴇʀ", url="http://t.me/MR_ROCKY_TZ"),
 
 ],
 [
-              InlineKeyboardButton("ᴍᴜsɪᴄ", url=f"https://t.me/Music4vcbot"),
-              InlineKeyboardButton("Chatabot", url=f"https://t.me/Mahiraxrobot")
+              InlineKeyboardButton("ᴍᴜsɪᴄ ʙᴏᴛ", url=f"https://t.me/BabyMusicsBot"),
+              InlineKeyboardButton("Chatabot", url=f"https://t.me/Baby_ChatsBot")
               ]]
     
     reply_markup = InlineKeyboardMarkup(buttons)
