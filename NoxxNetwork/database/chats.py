@@ -1,4 +1,4 @@
-from NoxxNetwork import db
+from NoxxNetwork import NoxxBot, db
 from typing import List, Dict
 from datetime import datetime
 from pyrogram import filters
