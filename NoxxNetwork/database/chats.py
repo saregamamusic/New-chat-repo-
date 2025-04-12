@@ -73,15 +73,15 @@ async def learn_group_messages(chat_id: int, messages: List[Dict]) -> bool:
 
     messages_data = []
     for msg in messages:
-        if not msg.text:
+        if not msg.get('text'):
             continue
             
         messages_data.append({
-            'message_id': msg.id,
-            'text': msg.text,
-            'date': msg.date,
-            'user_id': msg.from_user.id if msg.from_user else None,
-            'username': msg.from_user.username if msg.from_user else None
+            'message_id': msg.get('message_id'),
+            'text': msg['text'],
+            'date': msg.get('date', datetime.now()),
+            'user_id': msg.get('user_id'),
+            'username': msg.get('username')
         })
 
     if messages_data:
@@ -120,14 +120,20 @@ async def learn_command_handler(client, message: Message):
         # Ensure chat exists in database
         await add_served_chat(message.chat.id, message.chat.title)
 
-        # Get messages
+        # Get messages using iter_messages which works for bots
         messages = []
         count = 0
-        async for msg in client.get_chat_history(message.chat.id, limit=1000):
+        async for msg in client.iter_messages(message.chat.id, limit=1000):
             if not msg.text:
                 continue
                 
-            messages.append(msg)
+            messages.append({
+                'message_id': msg.id,
+                'text': msg.text,
+                'date': msg.date,
+                'user_id': msg.from_user.id if msg.from_user else None,
+                'username': msg.from_user.username if msg.from_user else None
+            })
             count += 1
             if count % 200 == 0:
                 await processing_msg.edit(f"⏳ Collected {count} messages...")
