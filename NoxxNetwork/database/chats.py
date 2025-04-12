@@ -34,11 +34,9 @@ async def is_served_chat(chat_id: int) -> bool:
         return False
     return True
 
-async def add_served_chat(chat_id: int):
-    is_served = await is_served_chat(chat_id)
-    if is_served:
-        return
-    return await chatsdb.insert_one({"chat_id": chat_id})
+async def add_served_chat(chat_id: int, title: str = None):
+    if not await is_served_chat(chat_id):
+        await chatsdb.insert_one({"chat_id": chat_id, "title": title})
 
 async def remove_served_chat(chat_id: int):
     is_served = await is_served_chat(chat_id)
@@ -75,15 +73,15 @@ async def learn_group_messages(chat_id: int, messages: List[Dict]) -> bool:
 
     messages_data = []
     for msg in messages:
-        if not msg.get('text'):
+        if not msg.text:
             continue
             
         messages_data.append({
-            'message_id': msg.get('message_id'),
-            'text': msg['text'],
-            'date': msg.get('date', datetime.now()),
-            'user_id': msg.get('user_id'),
-            'username': msg.get('username')
+            'message_id': msg.id,
+            'text': msg.text,
+            'date': msg.date,
+            'user_id': msg.from_user.id if msg.from_user else None,
+            'username': msg.from_user.username if msg.from_user else None
         })
 
     if messages_data:
@@ -95,16 +93,6 @@ async def learn_group_messages(chat_id: int, messages: List[Dict]) -> bool:
         return True
     return False
 
-async def get_learned_messages(chat_id: int, limit: int = 100) -> List[Dict]:
-    chat = await chatsdb.find_one(
-        {"chat_id": chat_id},
-        {"learned_messages": 1}
-    )
-    if not chat or "learned_messages" not in chat:
-        return []
-    
-    return chat["learned_messages"][-limit:]
-
 # ============= COMMAND HANDLER =============
 @NoxxBot.on_message(filters.command("learn") & filters.group)
 async def learn_command_handler(client, message: Message):
@@ -114,9 +102,16 @@ async def learn_command_handler(client, message: Message):
             await message.reply("❌ Only specific administrators can use this command!")
             return
 
-        # Check bot permissions
+        # Check bot admin status and permissions
         bot_member = await message.chat.get_member("me")
-        if not bot_member.can_delete_messages:
+        
+        # For Pyrogram v2+
+        if hasattr(bot_member, 'privileges'):
+            if not bot_member.privileges.can_delete_messages:
+                await message.reply("❌ I need 'Delete Messages' permission to read chat history!")
+                return
+        # For older Pyrogram versions
+        elif not getattr(bot_member, 'can_delete_messages', False):
             await message.reply("❌ I need 'Delete Messages' permission to read chat history!")
             return
 
@@ -125,20 +120,14 @@ async def learn_command_handler(client, message: Message):
         # Ensure chat exists in database
         await add_served_chat(message.chat.id, message.chat.title)
 
-        # Get messages using iter_history
+        # Get messages
         messages = []
         count = 0
-        async for msg in client.iter_history(message.chat.id, limit=1000):
+        async for msg in client.get_chat_history(message.chat.id, limit=1000):
             if not msg.text:
                 continue
                 
-            messages.append({
-                'message_id': msg.id,
-                'text': msg.text,
-                'date': msg.date,
-                'user_id': msg.from_user.id if msg.from_user else None,
-                'username': msg.from_user.username if msg.from_user else None
-            })
+            messages.append(msg)
             count += 1
             if count % 200 == 0:
                 await processing_msg.edit(f"⏳ Collected {count} messages...")
